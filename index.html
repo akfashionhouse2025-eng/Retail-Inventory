@@ -930,12 +930,26 @@ async function resetCounts(){
 /* ── UNMATCHED TAB ── */
 var lastUnmatchedRows=[];
 
+async function fetchAllUnmatched(){
+  // Supabase/PostgREST caps a single request at 1000 rows by default —
+  // page through with .range() so large inventories aren't silently truncated.
+  var PAGE=1000,all=[],from=0;
+  while(true){
+    var res=await sb.from('unmatched_report').select('*').order('reason').range(from,from+PAGE-1);
+    if(res.error)return res;
+    all=all.concat(res.data);
+    if(res.data.length<PAGE)break;
+    from+=PAGE;
+  }
+  return {data:all,error:null};
+}
+
 async function loadUnmatched(){
   var listEl=document.getElementById('unmatched-list');
   listEl.innerHTML='<div class="empty-state">Loading…</div>';
 
   var {count:totalItems}=await sb.from('inventory_items').select('*',{count:'exact',head:true});
-  var {data:rows,error}=await sb.from('unmatched_report').select('*').order('reason');
+  var {data:rows,error}=await fetchAllUnmatched();
 
   if(error){
     listEl.innerHTML='<div class="empty-state">Error loading report: '+escapeHtml(error.message)+'</div>';
