@@ -582,7 +582,7 @@ var pendingScan=null,pendingTime=0,pendingTimer=null;
 
 function handleScan(code){
   if(!code||code.trim().length<6)return;
-  code=code.trim();
+  code=code.trim().toUpperCase();
   if(!BARCODE_RE.test(code))return;
   var now=Date.now();
   if(code===pendingScan&&now-pendingTime<1500){
@@ -667,7 +667,7 @@ function toggleManualEntry(){
 function addManualBarcode(){
   var barcodeEl=document.getElementById('manual-barcode');
   var qtyEl=document.getElementById('manual-qty');
-  var code=barcodeEl.value.trim();
+  var code=barcodeEl.value.trim().toUpperCase();
   var qty=parseInt(qtyEl.value)||1;
 
   if(!code){ barcodeEl.focus(); return; }
@@ -762,7 +762,7 @@ function processUploadedCSV(text, filename){
     if(!line)return;
 
     var cols=parseUploadLine(line);
-    var barcode=cols[0]?cols[0].replace(/"/g,'').trim():'';
+    var barcode=cols[0]?cols[0].replace(/"/g,'').trim().toUpperCase():'';
     var qtyRaw=cols[1]?cols[1].replace(/"/g,'').trim():'';
     var qty=parseInt(qtyRaw)||1;
 
@@ -862,7 +862,7 @@ async function processInventoryCSV(text, filename){
     if(!line)return;
     var cols=parseInventoryLine(line);
     var name=cols[0]?cols[0].replace(/"/g,'').trim():'';
-    var barcode=cols[1]?cols[1].replace(/"/g,'').trim():'';
+    var barcode=cols[1]?cols[1].replace(/"/g,'').trim().toUpperCase():'';
     var stockRaw=cols[2]?cols[2].replace(/"/g,'').trim():'';
     if(barcode.toLowerCase()==='item barcode'||barcode.toLowerCase()==='barcode')return;
     if(!barcode||!BARCODE_RE.test(barcode))return;
