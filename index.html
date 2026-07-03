@@ -401,9 +401,9 @@
     </div>
     <div class="section-header">
       <h2>Needs Investigation</h2>
-      <button class="refresh-btn" onclick="loadUnmatched()">
-        <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        Refresh
+      <button class="refresh-btn" onclick="downloadUnmatchedCSV()">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download CSV
       </button>
     </div>
     <div id="unmatched-list">
@@ -928,6 +928,8 @@ async function resetCounts(){
 }
 
 /* ── UNMATCHED TAB ── */
+var lastUnmatchedRows=[];
+
 async function loadUnmatched(){
   var listEl=document.getElementById('unmatched-list');
   listEl.innerHTML='<div class="empty-state">Loading…</div>';
@@ -939,6 +941,8 @@ async function loadUnmatched(){
     listEl.innerHTML='<div class="empty-state">Error loading report: '+escapeHtml(error.message)+'</div>';
     return;
   }
+
+  lastUnmatchedRows=rows;
 
   var invMismatchCount=rows.filter(function(r){return r.source==='inventory_items';}).length;
   var matched=(totalItems||0)-invMismatchCount;
@@ -968,6 +972,34 @@ async function loadUnmatched(){
       '<button class="resolve-btn" onclick="resolveUnmatched(\''+r.source+'\',\''+r.id+'\')">Mark Resolved</button>'+
     '</div>';
   }).join('');
+}
+
+function csvField(v){
+  var s=(v===null||v===undefined)?'':String(v);
+  return '"'+s.replace(/"/g,'""')+'"';
+}
+
+function downloadUnmatchedCSV(){
+  if(!lastUnmatchedRows.length){ alert('No unmatched items to download. Open the Report tab first.'); return; }
+  var header=['Item Name','Barcode','Available Stock','Scanned Qty','Not Scanned Yet/Unmatched'];
+  var lines=[header.map(csvField).join(',')];
+  lastUnmatchedRows.forEach(function(r){
+    lines.push([
+      csvField(r.item_name||''),
+      csvField(r.item_barcode),
+      csvField(r.available_stock===null||r.available_stock===undefined?'':r.available_stock),
+      csvField(r.scanned_qty),
+      csvField(r.reason)
+    ].join(','));
+  });
+  var csv=lines.join('\n');
+  var blob=new Blob([csv],{type:'text/csv'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  var ts=new Date().toISOString().slice(0,10);
+  a.href=url;a.download='unmatched-report-'+ts+'.csv';
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
 async function resolveUnmatched(source,id){
