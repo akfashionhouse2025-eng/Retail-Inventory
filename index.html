@@ -274,7 +274,7 @@
 <div class="tab-bar">
   <button class="tab-btn active" data-tab="scan" onclick="switchTab('scan')">Scan</button>
   <button class="tab-btn" data-tab="inventory" onclick="switchTab('inventory')">Inventory</button>
-  <button class="tab-btn" data-tab="unmatched" onclick="switchTab('unmatched')">Unmatched <span class="tab-badge" id="unmatched-badge" style="display:none">0</span></button>
+  <button class="tab-btn" data-tab="unmatched" onclick="switchTab('unmatched')">Report <span class="tab-badge" id="unmatched-badge" style="display:none">0</span></button>
 </div>
 
 <main>
@@ -441,6 +441,18 @@ var SUPABASE_ANON_KEY='sb_publishable_C88ixlj-EhwMHCxf3hmHuA_XmKsJthQ';
 var sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
 var BARCODE_RE=/^[A-Za-z0-9\-\.\ ]+$/;
+
+function decodeFileBuffer(buffer){
+  // Excel/Windows often exports CSV as Windows-1252, not UTF-8 — auto-detect.
+  var text;
+  try{
+    text=new TextDecoder('utf-8',{fatal:true}).decode(buffer);
+  }catch(e){
+    text=new TextDecoder('windows-1252').decode(buffer);
+  }
+  if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+  return text;
+}
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g,function(c){
@@ -733,9 +745,9 @@ function handleCSVUpload(fileList){
     document.getElementById('csv-upload-input').value='';
   }catch(e){}
   var reader=new FileReader();
-  reader.onload=function(e){ processUploadedCSV(e.target.result, file.name); };
+  reader.onload=function(e){ processUploadedCSV(decodeFileBuffer(e.target.result), file.name); };
   reader.onerror=function(){ alert('Error reading file. Please try again.'); };
-  reader.readAsText(file);
+  reader.readAsArrayBuffer(file);
 }
 
 function processUploadedCSV(text, filename){
@@ -834,9 +846,9 @@ function handleInventoryUpload(fileList){
   if(!file||!(file instanceof Blob)){ alert('Could not read file. Please try again.'); return; }
   try{ document.getElementById('inventory-upload-input').value=''; }catch(e){}
   var reader=new FileReader();
-  reader.onload=function(e){ processInventoryCSV(e.target.result, file.name); };
+  reader.onload=function(e){ processInventoryCSV(decodeFileBuffer(e.target.result), file.name); };
   reader.onerror=function(){ alert('Error reading file. Please try again.'); };
-  reader.readAsText(file);
+  reader.readAsArrayBuffer(file);
 }
 
 async function processInventoryCSV(text, filename){
@@ -911,6 +923,7 @@ async function resetCounts(){
   renderList();
   document.getElementById('total-count').textContent='0 scanned';
   loadInventorySummary();
+  loadUnmatched();
   alert('✓ Counts reset. Ready for a new count.');
 }
 
