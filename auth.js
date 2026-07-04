@@ -80,7 +80,14 @@ async function handleForgotPassword(){
     redirectTo:'https://satken-im.netlify.app/'
   });
   setAuthBusy(false);
-  if(error){ showAuthError(error.message); return; }
+  if(error){
+    // Supabase's client wraps some server-side failures (e.g. an SMTP
+    // send error) as an error whose .message is just "{}" — show a
+    // sensible fallback instead of that raw string.
+    var msg=(error.message&&error.message!=='{}')?error.message:'Something went wrong sending the email. Please try again in a moment.';
+    showAuthError(msg);
+    return;
+  }
 
   showAuthNotice('If an account exists for that email, a reset link has been sent.');
 }
