@@ -7,12 +7,14 @@ var currentOrgId=null;
 var currentOrgName=null;
 var currentOrgSubStatus=null;
 var currentOrgTrialEndsAt=null;
+var currentUserRole=null;
 
 var authMode='login';
 
 function showAuthError(msg){
   var el=document.getElementById('auth-error');
   el.textContent=msg;
+  el.style.color='var(--red)';
   el.style.display='block';
 }
 function clearAuthError(){
@@ -26,6 +28,14 @@ function switchAuthMode(mode){
   clearAuthError();
   document.getElementById('auth-login-mode').style.display=(mode==='login')?'':'none';
   document.getElementById('auth-signup-mode').style.display=(mode==='signup')?'':'none';
+  document.getElementById('auth-forgot-mode').style.display=(mode==='forgot')?'':'none';
+}
+
+function showAuthNotice(msg){
+  var el=document.getElementById('auth-error');
+  el.textContent=msg;
+  el.style.color='var(--green)';
+  el.style.display='block';
 }
 
 function setAuthBusy(busy){
@@ -53,11 +63,44 @@ async function handleSignup(){
   }
 
   currentUser=data.user;
-  var {data:newOrgId,error:orgErr}=await sb.rpc('create_org_for_new_user',{org_name:storeName});
+  var {data:newOrgId,error:orgErr}=await sb.rpc('accept_invite_or_create_org',{org_name:storeName});
   setAuthBusy(false);
   if(orgErr){ showAuthError('Account created but store setup failed: '+orgErr.message); return; }
   currentOrgId=newOrgId;
   await resolveOrgAndEnterApp();
+}
+
+async function handleForgotPassword(){
+  clearAuthError();
+  var email=document.getElementById('auth-forgot-email').value.trim();
+  if(!email){ showAuthError('Email is required.'); return; }
+
+  setAuthBusy(true);
+  var {error}=await sb.auth.resetPasswordForEmail(email,{
+    redirectTo:'https://satken-im.netlify.app/'
+  });
+  setAuthBusy(false);
+  if(error){ showAuthError(error.message); return; }
+
+  showAuthNotice('If an account exists for that email, a reset link has been sent.');
+}
+
+async function handleSetNewPassword(){
+  var el=document.getElementById('reset-password-error');
+  el.style.display='none';
+  var newPassword=document.getElementById('reset-new-password').value;
+  if(!newPassword||newPassword.length<6){
+    el.textContent='Password must be at least 6 characters.';
+    el.style.display='block';
+    return;
+  }
+  var {error}=await sb.auth.updateUser({password:newPassword});
+  if(error){ el.textContent=error.message; el.style.display='block'; return; }
+
+  document.getElementById('reset-password-screen').style.display='none';
+  var {data:{session}}=await sb.auth.getSession();
+  if(session){ currentUser=session.user; await resolveOrgAndEnterApp(); }
+  else { document.getElementById('auth-screen').style.display=''; switchAuthMode('login'); }
 }
 
 async function handleLogin(){
@@ -82,6 +125,7 @@ async function handleLogout(){
   currentOrgName=null;
   currentOrgSubStatus=null;
   currentOrgTrialEndsAt=null;
+  currentUserRole=null;
   document.getElementById('app-shell').style.display='none';
   document.getElementById('trial-gate-screen').style.display='none';
   resetBranding();
@@ -92,7 +136,7 @@ async function handleLogout(){
 async function resolveOrgAndEnterApp(){
   var {data:membership,error}=await sb
     .from('org_members')
-    .select('org_id, organizations(id, name, subscription_status, trial_ends_at)')
+    .select('org_id, role, organizations(id, name, subscription_status, trial_ends_at)')
     .eq('user_id',currentUser.id)
     .single();
 
@@ -105,14 +149,22 @@ async function resolveOrgAndEnterApp(){
   currentOrgName=membership.organizations.name;
   currentOrgSubStatus=membership.organizations.subscription_status;
   currentOrgTrialEndsAt=membership.organizations.trial_ends_at;
+  currentUserRole=membership.role;
 
   applyBranding();
+  applyRoleVisibility();
 
   if(isTrialExpired()){ showTrialGate(); return; }
 
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('trial-gate-screen').style.display='none';
+  document.getElementById('reset-password-screen').style.display='none';
   document.getElementById('app-shell').style.display='';
+}
+
+function applyRoleVisibility(){
+  var panel=document.getElementById('invite-staff-panel');
+  if(panel) panel.style.display=(currentUserRole==='owner')?'':'none';
 }
 
 function isTrialExpired(){
@@ -127,6 +179,7 @@ function isTrialExpired(){
 function showTrialGate(){
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('app-shell').style.display='none';
+  document.getElementById('reset-password-screen').style.display='none';
   var nameEl=document.getElementById('trial-gate-org-name');
   if(nameEl)nameEl.textContent=currentOrgName||'your store';
   document.getElementById('trial-gate-screen').style.display='';
@@ -150,6 +203,97 @@ function resetBranding(){
   if(navEl)navEl.textContent='SATKEN';
 }
 
+// Fires when the user lands back on the site via a password-reset email
+// link — registered at top level (not inside DOMContentLoaded) since it's
+// just a subscription and can fire independently of the initial session check.
+sb.auth.onAuthStateChange(function(event,session){
+  if(event==='PASSWORD_RECOVERY'){
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('trial-gate-screen').style.display='none';
+    document.getElementById('app-shell').style.display='none';
+    document.getElementById('reset-password-screen').style.display='';
+  }
+});
+
+/* ── STAFF INVITES ── */
+async function sendStaffInvite(){
+  var email=document.getElementById('invite-email').value.trim();
+  if(!email)return;
+  var {error}=await sb.rpc('insert_staff_invite',{p_org_id:currentOrgId,p_email:email});
+  if(error){ alert('Could not send invite: '+error.message); return; }
+  document.getElementById('invite-email').value='';
+  loadStaffInvites();
+}
+
+async function loadStaffInvites(){
+  var el=document.getElementById('invite-list');
+  if(!el)return;
+  var {data,error}=await sb.from('invites')
+    .select('email, created_at, accepted_at')
+    .eq('org_id',currentOrgId)
+    .order('created_at',{ascending:false});
+  if(error)return;
+  el.innerHTML=data.map(function(inv){
+    var status=inv.accepted_at?'Joined':'Pending';
+    return '<div style="font-size:12px;color:var(--muted);padding:4px 0">'+escapeHtml(inv.email)+' — '+status+'</div>';
+  }).join('') || '<div class="empty-state" style="padding:16px">No invites yet</div>';
+}
+
+/* ── BILLING (Razorpay) ── */
+async function handleSubscribe(){
+  var btn=document.getElementById('subscribe-btn');
+  btn.disabled=true;
+  btn.textContent='Redirecting to payment…';
+
+  var {data:{session}}=await sb.auth.getSession();
+  if(!session){ btn.disabled=false; btn.textContent='Subscribe — ₹999/year'; return; }
+
+  try{
+    var resp=await fetch('/.netlify/functions/create-payment-link',{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+session.access_token,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({orgId:currentOrgId})
+    });
+    var data=await resp.json();
+    if(!resp.ok){
+      alert('Could not start payment: '+(data.error||'unknown error'));
+      btn.disabled=false;
+      btn.textContent='Subscribe — ₹999/year';
+      return;
+    }
+    window.location.href=data.short_url;
+  }catch(e){
+    alert('Network error starting payment.');
+    btn.disabled=false;
+    btn.textContent='Subscribe — ₹999/year';
+  }
+}
+
+function checkPostPaymentRedirect(){
+  var params=new URLSearchParams(window.location.search);
+  if(params.has('razorpay_payment_id')){
+    window.history.replaceState({},document.title,window.location.pathname);
+    pollForActivation(0);
+  }
+}
+
+function pollForActivation(attempt){
+  if(attempt>=8){
+    alert('Payment received — activation can take a few seconds. Please refresh shortly if this screen doesn\'t update.');
+    return;
+  }
+  setTimeout(async function(){
+    await resolveOrgAndEnterApp();
+    var gate=document.getElementById('trial-gate-screen');
+    if(gate&&gate.style.display!=='none'){
+      pollForActivation(attempt+1);
+    }
+  },2500);
+}
+
 document.addEventListener('DOMContentLoaded',async function(){
   var {data:{session}}=await sb.auth.getSession();
   if(session){
@@ -158,4 +302,5 @@ document.addEventListener('DOMContentLoaded',async function(){
   } else {
     document.getElementById('auth-screen').style.display='';
   }
+  checkPostPaymentRedirect();
 });

@@ -25,7 +25,10 @@ function switchTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   document.querySelector('.tab-btn[data-tab="'+name+'"]').classList.add('active');
   if(name==='unmatched')loadUnmatched();
-  if(name==='inventory')loadInventorySummary();
+  if(name==='inventory'){
+    loadInventorySummary();
+    if(currentUserRole==='owner')loadStaffInvites();
+  }
 }
 
 var scans={},scanOrder=[],lastCode='',lastTime=0,totalUnique=0;
