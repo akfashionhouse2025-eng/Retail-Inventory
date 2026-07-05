@@ -260,14 +260,23 @@ async function loadStaffInvites(){
 }
 
 /* ── BILLING (Razorpay) ── */
+function getBtnLabel(btnEl){
+  var span=btnEl.querySelector('.btn-label');
+  return span?span.textContent:btnEl.textContent;
+}
+function setBtnLabel(btnEl,text){
+  var span=btnEl.querySelector('.btn-label');
+  if(span)span.textContent=text; else btnEl.textContent=text;
+}
+
 async function handleSubscribe(btnEl){
   btnEl=btnEl||document.getElementById('subscribe-btn');
-  var originalText=btnEl.textContent;
+  var originalText=getBtnLabel(btnEl);
   btnEl.disabled=true;
-  btnEl.textContent='Redirecting to payment…';
+  setBtnLabel(btnEl,'Redirecting to payment…');
 
   var {data:{session}}=await sb.auth.getSession();
-  if(!session){ btnEl.disabled=false; btnEl.textContent=originalText; return; }
+  if(!session){ btnEl.disabled=false; setBtnLabel(btnEl,originalText); return; }
 
   try{
     var resp=await fetch('/.netlify/functions/create-payment-link',{
@@ -282,14 +291,14 @@ async function handleSubscribe(btnEl){
     if(!resp.ok){
       alert('Could not start payment: '+(data.error||'unknown error'));
       btnEl.disabled=false;
-      btnEl.textContent=originalText;
+      setBtnLabel(btnEl,originalText);
       return;
     }
     window.location.href=data.short_url;
   }catch(e){
     alert('Network error starting payment.');
     btnEl.disabled=false;
-    btnEl.textContent=originalText;
+    setBtnLabel(btnEl,originalText);
   }
 }
 

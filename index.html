@@ -128,6 +128,10 @@
   .header-pill { font-family:'JetBrains Mono',monospace; font-size:16px; color: var(--gold); background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--input-border); white-space:nowrap; }
   .nav-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 6px; justify-content: flex-end; }
   .nav-link { font-family:'Cormorant Garamond',serif; font-size:17px; font-weight: 600; color: var(--gold); text-decoration: underline; cursor: pointer; background: none; border: none; white-space: nowrap; }
+  .upgrade-badge { display:inline-flex;align-items:center;gap:6px;background:rgba(201,168,76,0.08);border:1px solid var(--gold);border-radius:20px;padding:5px 14px;font-family:'Cormorant Garamond',serif;font-weight:600;font-size:15px;color:var(--gold);cursor:pointer;white-space:nowrap; }
+  .upgrade-badge svg { width:16px;height:16px;stroke:var(--gold);fill:none;stroke-width:1.6;flex-shrink:0; }
+  .upgrade-badge:active { opacity:0.8; }
+  .upgrade-badge:disabled { opacity:0.5;cursor:not-allowed; }
 
   /* ── TAB BAR ── */
   .tab-bar {
@@ -403,7 +407,10 @@
     <span id="app-nav-label">SATKEN</span>
     <span class="nav-right">
       <span class="header-pill" id="total-count">0 scanned</span>
-      <button class="nav-link" id="nav-subscribe-btn" style="display:none" onclick="handleSubscribe(this)">Upgrade — ₹999/year</button>
+      <button class="upgrade-badge" id="nav-subscribe-btn" style="display:none" onclick="handleSubscribe(this)">
+        <svg viewBox="0 0 24 24"><path d="M2 18h20l-2-9-5 4-3-7-3 7-5-4-2 9z"/><path d="M2 18h20"/></svg>
+        <span class="btn-label">Upgrade — ₹999/year</span>
+      </button>
       <button class="nav-link" onclick="handleLogout()">Sign out</button>
     </span>
   </div>
