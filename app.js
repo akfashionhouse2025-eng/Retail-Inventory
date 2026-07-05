@@ -536,12 +536,17 @@ async function loadUnmatched(){
     var name=r.item_name?escapeHtml(r.item_name):'(barcode not in inventory)';
     var stockLabel=(r.available_stock===null||r.available_stock===undefined)?'—':r.available_stock;
     return '<div class="unmatched-item">'+
-      '<div class="um-top">'+
-        '<div><div class="um-name">'+name+'</div><div class="um-code">'+escapeHtml(r.item_barcode)+'</div></div>'+
-        '<div class="reason-badge '+badgeClass+'">'+escapeHtml(r.reason)+'</div>'+
+      '<div class="um-left">'+
+        '<div class="um-name" title="'+name+'">'+name+'</div>'+
+        '<div class="um-code">'+escapeHtml(r.item_barcode)+'</div>'+
       '</div>'+
-      '<div class="um-qty">Expected <b>'+stockLabel+'</b> · Scanned <b>'+r.scanned_qty+'</b></div>'+
-      '<button class="resolve-btn" onclick="resolveUnmatched(\''+r.source+'\',\''+r.id+'\')">Mark Resolved</button>'+
+      '<div class="um-mid">'+
+        '<div class="reason-badge '+badgeClass+'">'+escapeHtml(r.reason)+'</div>'+
+        '<div class="um-qty-compact">Exp <b>'+stockLabel+'</b> · Scan <b>'+r.scanned_qty+'</b></div>'+
+      '</div>'+
+      '<button class="resolve-icon" title="Mark Resolved" onclick="resolveUnmatched(\''+r.source+'\',\''+r.id+'\')">'+
+        '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>'+
+      '</button>'+
     '</div>';
   }).join('');
 }
