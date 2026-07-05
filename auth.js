@@ -8,6 +8,7 @@ var currentOrgName=null;
 var currentOrgSubStatus=null;
 var currentOrgTrialEndsAt=null;
 var currentUserRole=null;
+var currentOrgPeriodEndsAt=null;
 
 var authMode='login';
 
@@ -155,7 +156,7 @@ async function handleLogout(){
 async function resolveOrgAndEnterApp(){
   var {data:membership,error}=await sb
     .from('org_members')
-    .select('org_id, role, organizations(id, name, subscription_status, trial_ends_at)')
+    .select('org_id, role, organizations(id, name, subscription_status, trial_ends_at, current_period_ends_at)')
     .eq('user_id',currentUser.id)
     .single();
 
@@ -168,10 +169,10 @@ async function resolveOrgAndEnterApp(){
   currentOrgName=membership.organizations.name;
   currentOrgSubStatus=membership.organizations.subscription_status;
   currentOrgTrialEndsAt=membership.organizations.trial_ends_at;
+  currentOrgPeriodEndsAt=membership.organizations.current_period_ends_at;
   currentUserRole=membership.role;
 
   applyBranding();
-  applyRoleVisibility();
   applySubscribeVisibility();
 
   if(isTrialExpired()){ showTrialGate(); return; }
@@ -180,11 +181,6 @@ async function resolveOrgAndEnterApp(){
   document.getElementById('trial-gate-screen').style.display='none';
   document.getElementById('reset-password-screen').style.display='none';
   document.getElementById('app-shell').style.display='';
-}
-
-function applyRoleVisibility(){
-  var panel=document.getElementById('invite-staff-panel');
-  if(panel) panel.style.display=(currentUserRole==='owner')?'':'none';
 }
 
 function isTrialExpired(){
@@ -235,30 +231,6 @@ sb.auth.onAuthStateChange(function(event,session){
   }
 });
 
-/* ── STAFF INVITES ── */
-async function sendStaffInvite(){
-  var email=document.getElementById('invite-email').value.trim();
-  if(!email)return;
-  var {error}=await sb.rpc('insert_staff_invite',{p_org_id:currentOrgId,p_email:email});
-  if(error){ alert('Could not send invite: '+error.message); return; }
-  document.getElementById('invite-email').value='';
-  loadStaffInvites();
-}
-
-async function loadStaffInvites(){
-  var el=document.getElementById('invite-list');
-  if(!el)return;
-  var {data,error}=await sb.from('invites')
-    .select('email, created_at, accepted_at')
-    .eq('org_id',currentOrgId)
-    .order('created_at',{ascending:false});
-  if(error)return;
-  el.innerHTML=data.map(function(inv){
-    var status=inv.accepted_at?'Joined':'Pending';
-    return '<div style="font-size:12px;color:var(--muted);padding:4px 0">'+escapeHtml(inv.email)+' — '+status+'</div>';
-  }).join('') || '<div class="empty-state" style="padding:16px">No invites yet</div>';
-}
-
 /* ── BILLING (Razorpay) ── */
 function getBtnLabel(btnEl){
   var span=btnEl.querySelector('.btn-label');
@@ -304,7 +276,21 @@ async function handleSubscribe(btnEl){
 
 function applySubscribeVisibility(){
   var navBtn=document.getElementById('nav-subscribe-btn');
-  if(navBtn) navBtn.style.display=(currentOrgSubStatus==='active')?'none':'';
+  var daysPill=document.getElementById('days-remaining-pill');
+  var isActive=currentOrgSubStatus==='active';
+
+  if(navBtn) navBtn.style.display=isActive?'none':'';
+
+  if(daysPill){
+    if(isActive&&currentOrgPeriodEndsAt){
+      var msLeft=new Date(currentOrgPeriodEndsAt)-new Date();
+      var daysLeft=Math.max(0,Math.ceil(msLeft/86400000));
+      daysPill.textContent=daysLeft+(daysLeft===1?' day left':' days left');
+      daysPill.style.display='';
+    } else {
+      daysPill.style.display='none';
+    }
+  }
 }
 
 function checkPostPaymentRedirect(){
