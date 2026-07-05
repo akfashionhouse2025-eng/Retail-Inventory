@@ -115,6 +115,7 @@ async function handleSetNewPassword(){
   var {error}=await sb.auth.updateUser({password:newPassword});
   if(error){ el.textContent=error.message; el.style.display='block'; return; }
 
+  window.history.replaceState({},document.title,window.location.pathname);
   document.getElementById('reset-password-screen').style.display='none';
   var {data:{session}}=await sb.auth.getSession();
   if(session){ currentUser=session.user; await resolveOrgAndEnterApp(); }
@@ -320,6 +321,24 @@ function pollForActivation(attempt){
 }
 
 document.addEventListener('DOMContentLoaded',async function(){
+  // A password-recovery link lands here with #...type=recovery in the URL.
+  // Supabase establishes a real session from it immediately, which would
+  // otherwise look identical to a normal login below and skip straight into
+  // the app — so detect it directly from the URL and let the
+  // PASSWORD_RECOVERY listener (registered above) own the screen instead.
+  var isRecovery=window.location.hash.indexOf('type=recovery')!==-1;
+  if(isRecovery){
+    setTimeout(function(){
+      if(document.getElementById('reset-password-screen').style.display!==''){
+        document.getElementById('auth-screen').style.display='none';
+        document.getElementById('trial-gate-screen').style.display='none';
+        document.getElementById('app-shell').style.display='none';
+        document.getElementById('reset-password-screen').style.display='';
+      }
+    },800);
+    return;
+  }
+
   var {data:{session}}=await sb.auth.getSession();
   if(session){
     currentUser=session.user;
