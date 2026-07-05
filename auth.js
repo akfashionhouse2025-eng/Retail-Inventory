@@ -11,6 +11,17 @@ var currentUserRole=null;
 
 var authMode='login';
 
+var EYE_OPEN_SVG='<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+var EYE_CLOSED_SVG='<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.6 18.6 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+
+function togglePasswordVisibility(inputId,btnEl){
+  var input=document.getElementById(inputId);
+  var showing=input.type==='text';
+  input.type=showing?'password':'text';
+  btnEl.querySelector('svg').innerHTML=showing?EYE_OPEN_SVG:EYE_CLOSED_SVG;
+  btnEl.setAttribute('aria-label',showing?'Show password':'Hide password');
+}
+
 function showAuthError(msg){
   var el=document.getElementById('auth-error');
   el.textContent=msg;
@@ -160,6 +171,7 @@ async function resolveOrgAndEnterApp(){
 
   applyBranding();
   applyRoleVisibility();
+  applySubscribeVisibility();
 
   if(isTrialExpired()){ showTrialGate(); return; }
 
@@ -247,13 +259,14 @@ async function loadStaffInvites(){
 }
 
 /* ── BILLING (Razorpay) ── */
-async function handleSubscribe(){
-  var btn=document.getElementById('subscribe-btn');
-  btn.disabled=true;
-  btn.textContent='Redirecting to payment…';
+async function handleSubscribe(btnEl){
+  btnEl=btnEl||document.getElementById('subscribe-btn');
+  var originalText=btnEl.textContent;
+  btnEl.disabled=true;
+  btnEl.textContent='Redirecting to payment…';
 
   var {data:{session}}=await sb.auth.getSession();
-  if(!session){ btn.disabled=false; btn.textContent='Subscribe — ₹999/year'; return; }
+  if(!session){ btnEl.disabled=false; btnEl.textContent=originalText; return; }
 
   try{
     var resp=await fetch('/.netlify/functions/create-payment-link',{
@@ -267,16 +280,21 @@ async function handleSubscribe(){
     var data=await resp.json();
     if(!resp.ok){
       alert('Could not start payment: '+(data.error||'unknown error'));
-      btn.disabled=false;
-      btn.textContent='Subscribe — ₹999/year';
+      btnEl.disabled=false;
+      btnEl.textContent=originalText;
       return;
     }
     window.location.href=data.short_url;
   }catch(e){
     alert('Network error starting payment.');
-    btn.disabled=false;
-    btn.textContent='Subscribe — ₹999/year';
+    btnEl.disabled=false;
+    btnEl.textContent=originalText;
   }
+}
+
+function applySubscribeVisibility(){
+  var navBtn=document.getElementById('nav-subscribe-btn');
+  if(navBtn) navBtn.style.display=(currentOrgSubStatus==='active')?'none':'';
 }
 
 function checkPostPaymentRedirect(){

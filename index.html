@@ -261,6 +261,12 @@
   .trial-card { background:var(--surface);border:0.5px solid var(--border);border-radius:16px;padding:28px 20px;margin-top:60px;text-align:center; }
   .trial-card h3 { font-size:18px;font-weight:600;margin-bottom:8px; }
   .trial-card p { font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.5; }
+
+  /* ── PASSWORD VISIBILITY TOGGLE ── */
+  .password-field { position:relative;margin-bottom:10px; }
+  .password-field .manual-input { margin-bottom:0;padding-right:40px; }
+  .password-eye { position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:6px;display:flex;align-items:center;justify-content:center;color:var(--muted); }
+  .password-eye svg { width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8; }
 </style>
 </head>
 <body>
@@ -283,7 +289,12 @@
       <div id="auth-login-mode">
         <h3>Sign in</h3>
         <input class="manual-input" type="email" id="auth-email" placeholder="Email" autocomplete="username">
-        <input class="manual-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+        <div class="password-field">
+          <input class="manual-input" type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+          <button type="button" class="password-eye" onclick="togglePasswordVisibility('auth-password',this)" aria-label="Show password">
+            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
         <button class="btn btn-gold" style="width:100%;justify-content:center" onclick="handleLogin()">Sign In</button>
         <p class="hint">No account? <a onclick="switchAuthMode('signup')">Create one</a></p>
         <p class="hint"><a onclick="switchAuthMode('forgot')">Forgot password?</a></p>
@@ -292,7 +303,12 @@
         <h3>Create your account</h3>
         <input class="manual-input" type="text" id="auth-store-name" placeholder="Store / business name">
         <input class="manual-input" type="email" id="auth-signup-email" placeholder="Email" autocomplete="username">
-        <input class="manual-input" type="password" id="auth-signup-password" placeholder="Password (min 6 characters)" autocomplete="new-password">
+        <div class="password-field">
+          <input class="manual-input" type="password" id="auth-signup-password" placeholder="Password (min 6 characters)" autocomplete="new-password">
+          <button type="button" class="password-eye" onclick="togglePasswordVisibility('auth-signup-password',this)" aria-label="Show password">
+            <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
         <button class="btn btn-gold" style="width:100%;justify-content:center" onclick="handleSignup()">Create Account</button>
         <p class="hint">Already have an account? <a onclick="switchAuthMode('login')">Sign in</a></p>
       </div>
@@ -312,7 +328,12 @@
   <main>
     <div class="auth-card">
       <h3>Set a new password</h3>
-      <input class="manual-input" type="password" id="reset-new-password" placeholder="New password (min 6 characters)" autocomplete="new-password">
+      <div class="password-field">
+        <input class="manual-input" type="password" id="reset-new-password" placeholder="New password (min 6 characters)" autocomplete="new-password">
+        <button type="button" class="password-eye" onclick="togglePasswordVisibility('reset-new-password',this)" aria-label="Show password">
+          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
       <button class="btn btn-gold" style="width:100%;justify-content:center" onclick="handleSetNewPassword()">Update Password</button>
       <div id="reset-password-error" style="color:var(--red);font-size:13px;margin-top:12px;display:none"></div>
     </div>
@@ -325,7 +346,7 @@
     <div class="trial-card">
       <h3>Your trial has ended</h3>
       <p>Subscribe to keep using SATKEN for <span id="trial-gate-org-name"></span>.</p>
-      <button class="btn btn-gold" style="width:100%;justify-content:center" id="subscribe-btn" onclick="handleSubscribe()">Subscribe — ₹999/year</button>
+      <button class="btn btn-gold" style="width:100%;justify-content:center" id="subscribe-btn" onclick="handleSubscribe(this)">Subscribe — ₹999/year</button>
       <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:10px" onclick="handleLogout()">Sign out</button>
     </div>
   </main>
@@ -339,6 +360,7 @@
     <span id="app-nav-label">SATKEN</span>
     <span class="nav-right">
       <span class="header-pill" id="total-count">0 scanned</span>
+      <button class="nav-link" id="nav-subscribe-btn" style="display:none" onclick="handleSubscribe(this)">Upgrade — ₹999/year</button>
       <button class="nav-link" onclick="handleLogout()">Sign out</button>
     </span>
   </div>
